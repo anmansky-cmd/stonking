@@ -65,8 +65,8 @@ jobs:
           # Явно заставляем Docker собирать образ под ARM64 (aarch64) для платы
           platforms: linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ id.meta.outputs.tags }}
-          labels: ${{ id.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           # Кэширование внутри GitHub Actions ускоряет сборку в разы
           cache-from: type=gha
           cache-to: type=gha,mode=max
