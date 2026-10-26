@@ -112,7 +112,6 @@ jobs:
           mkdir -p /tmp/ffmpeg-root
           make install DESTDIR=/tmp/ffmpeg-root
           
-          # Исправлен синтаксис --provides: каждый альтернативный пакет передан отдельным флагом
           fpm -s dir -t deb -n ffmpeg-rockchip -v 7.1.0 --architecture aarch64 \
             --maintainer "custom-build" \
             --provides "ffmpeg" \
@@ -128,16 +127,14 @@ jobs:
           git clone --depth=1 https://github.com/mpv-player/mpv.git
           cd mpv
           
+          # Очищенный кросс-файл для Meson (параметр заменен на стандартный pkg-config)
           cat <<EOF > cross_file_mpv.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
           cpp = 'aarch64-linux-gnu-g++'
           ar = 'aarch64-linux-gnu-ar'
           strip = 'aarch64-linux-gnu-strip'
-          pkgconfig = 'pkg-config'
-
-          [properties]
-          pkg_config_path = '/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig'
+          pkg_config = 'pkg-config'
 
           [host_machine]
           system = 'linux'
@@ -146,13 +143,19 @@ jobs:
           endian = 'little'
           EOF
 
-          meson setup build --prefix=/usr --cross-file cross_file_mpv.txt -Dlibmpv=true -Dgpl=true
+          # Принудительный экспорт путей в переменные окружения, чтобы meson нашел libavcodec
+          export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
+          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
+
+          # Конфигурация mpv с явным отключением неиспользуемых x86 интерфейсов (вывод идет на Wayland/DRM)
+          meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
+            -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
+            -Dx11=disabled -dxv=disabled -Dvaapi=disabled -Dnvdec=disabled
           meson compile -C build
           
           mkdir -p /tmp/mpv-root
           DESTDIR=/tmp/mpv-root meson install -C build
           
-          # Исправлен синтаксис --provides для MPV
           fpm -s dir -t deb -n mpv-rockchip -v 0.39.0 --architecture aarch64 \
             --maintainer "custom-build" \
             --provides "mpv" \
