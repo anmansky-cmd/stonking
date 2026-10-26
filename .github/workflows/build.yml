@@ -124,13 +124,15 @@ jobs:
 
       - name: Cross-Build MPV (ARM64)
         run: |
+          # Устанавливаем ARM64-версию libplacebo и dev-пакет
+           apt-get install -y libplacebo-dev:arm64
           git clone --depth=1 --branch v0.39.0 https://github.com/mpv-player/mpv.git
           cd mpv
           
           ## Получаем libplacebo в подпроекты, чтобы плеер собрался монолитно без внешних x86 конфликтов
           ### https://github.com/videolan/vlc/tree/master/contrib/src/libplacebo
-          mkdir -p subprojects
-          git clone https://github.com/videolan/vlc.git --depth=1 --recursive  subprojects/libplacebo
+          # mkdir -p subprojects
+          # git clone https://github.com/videolan/vlc.git --depth=1 --recursive  subprojects/libplacebo
           
           # Создаём скрипт-обёртку pkg-config для кросс-компиляции
           cat <<'WRAPPER' > /tmp/aarch64-pkg-config
