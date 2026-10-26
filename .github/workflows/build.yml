@@ -125,7 +125,7 @@ jobs:
       - name: Cross-Build MPV (ARM64)
         run: |
           # Устанавливаем ARM64-версию libplacebo и dev-пакет
-           apt-get install -y libplacebo-dev:arm64 libbz2-dev:arm64 zlib1g-dev:arm64 libpng-dev:arm64
+           apt-get install -y libplacebo-dev:arm64 libbz2-dev:arm64 zlib1g-dev:arm64 libpng-dev:arm64 bzip2:arm64
           git clone --depth=1 --branch v0.39.0 https://github.com/mpv-player/mpv.git
           cd mpv
           
