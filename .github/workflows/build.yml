@@ -162,6 +162,13 @@ jobs:
           endian = 'little'
           EOF
 
+          # Исправление несовместимости FF_PROFILE_* с FFmpeg 8.0
+          sed -i 's/FF_PROFILE_/AV_PROFILE_/g' demux/demux_mkv.c
+
+          # Исправление av_format_inject_global_side_data (если она всё ещё используется)
+          # Согласно комментариям FFmpeg, эту функцию не нужно вызывать вручную, можно напрямую удалить или закомментировать
+          sed -i '/av_format_inject_global_side_data/d' demux/demux_lavf.c
+
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
              -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
              -Dx11=disabled -Dxv=disabled -Dvaapi=disabled
