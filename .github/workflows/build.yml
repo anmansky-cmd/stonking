@@ -154,7 +154,7 @@ jobs:
           # Настройка mpv с исправленным синтаксисом флагов (исправлено -dxv на -Dxv)
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
             -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
-            -Dx11=disabled -Dxv=disabled -Dvaapi=disabled -Dnvdec=disabled
+            -Dx11=disabled -Dxv=disabled -Dvaapi=disabled ## -Dnvdec=disabled
           meson compile -C build
           
           mkdir -p /tmp/mpv-root
