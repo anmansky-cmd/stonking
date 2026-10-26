@@ -92,7 +92,6 @@ jobs:
           git clone --depth=1 https://github.com/nyanmisaka/ffmpeg-rockchip.git
           cd ffmpeg-rockchip
           
-          # Заставляем pkg-config смотреть в пути библиотек Multiarch (arm64) хост-системы и наших временных директорий
           export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:$PKG_CONFIG_PATH
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
           
@@ -113,8 +112,13 @@ jobs:
           mkdir -p /tmp/ffmpeg-root
           make install DESTDIR=/tmp/ffmpeg-root
           
+          # Исправлен синтаксис --provides: каждый альтернативный пакет передан отдельным флагом
           fpm -s dir -t deb -n ffmpeg-rockchip -v 7.1.0 --architecture aarch64 \
-            --maintainer "custom-build" --provides "ffmpeg,libavcodec,libavformat,libavutil" \
+            --maintainer "custom-build" \
+            --provides "ffmpeg" \
+            --provides "libavcodec" \
+            --provides "libavformat" \
+            --provides "libavutil" \
             --description "FFmpeg with Rockchip RK3588 hardware acceleration" \
             -C /tmp/ffmpeg-root usr
           cp *.deb ../
@@ -148,8 +152,10 @@ jobs:
           mkdir -p /tmp/mpv-root
           DESTDIR=/tmp/mpv-root meson install -C build
           
+          # Исправлен синтаксис --provides для MPV
           fpm -s dir -t deb -n mpv-rockchip -v 0.39.0 --architecture aarch64 \
-            --maintainer "custom-build" --provides "mpv" \
+            --maintainer "custom-build" \
+            --provides "mpv" \
             --description "MPV Player cross-compiled for Rockchip RK3588" \
             -C /tmp/mpv-root usr
           cp *.deb ../
