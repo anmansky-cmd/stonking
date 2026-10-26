@@ -127,7 +127,11 @@ jobs:
           git clone --depth=1 https://github.com/mpv-player/mpv.git
           cd mpv
           
-          # Очищенный кросс-файл для Meson (параметр заменен на стандартный pkg-config)
+          # Получаем libplacebo в подпроекты, чтобы плеер собрался монолитно без внешних x86 конфликтов
+          mkdir -p subprojects
+          git clone https://videolan.org --depth=1 --recursive subprojects/libplacebo
+          
+          # Очищенный кросс-файл для Meson
           cat <<EOF > cross_file_mpv.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -143,14 +147,14 @@ jobs:
           endian = 'little'
           EOF
 
-          # Принудительный экспорт путей в переменные окружения, чтобы meson нашел libavcodec
+          # Экспорт путей в переменные окружения для pkg-config
           export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
 
-          # Конфигурация mpv с явным отключением неиспользуемых x86 интерфейсов (вывод идет на Wayland/DRM)
+          # Настройка mpv с исправленным синтаксисом флагов (исправлено -dxv на -Dxv)
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
             -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
-            -Dx11=disabled -dxv=disabled -Dvaapi=disabled -Dnvdec=disabled
+            -Dx11=disabled -Dxv=disabled -Dvaapi=disabled -Dnvdec=disabled
           meson compile -C build
           
           mkdir -p /tmp/mpv-root
