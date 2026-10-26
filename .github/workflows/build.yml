@@ -32,7 +32,7 @@ jobs:
 
       - name: Build and Package Librga
         run: |
-          git clone --depth=1 https://github.com/rockchip-linux/linux-rga.git
+          git clone --depth=1 https://github.com/airockchip/librga.git
           cd linux-rga
           meson setup build --prefix=/usr
           meson compile -C build
