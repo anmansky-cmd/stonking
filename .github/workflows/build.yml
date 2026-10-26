@@ -124,10 +124,11 @@ jobs:
 
       - name: Cross-Build MPV (ARM64)
         run: |
-          git clone --depth=1 https://github.com/mpv-player/mpv.git
+          git clone --depth=1 --branch v0.39.0 https://github.com/mpv-player/mpv.git
           cd mpv
           
           ## Получаем libplacebo в подпроекты, чтобы плеер собрался монолитно без внешних x86 конфликтов
+          ### https://github.com/videolan/vlc/tree/master/contrib/src/libplacebo
           mkdir -p subprojects
           git clone https://github.com/videolan/vlc.git --depth=1 --recursive  subprojects/libplacebo
           
@@ -140,6 +141,10 @@ jobs:
           strip = 'aarch64-linux-gnu-strip'
           pkg_config = 'pkg-config'
 
+          [properties]
+          pkg_config_path = ['/tmp/ffmpeg-root/usr/lib/pkgconfig', '/tmp/mpp-root/usr/lib/pkgconfig', '/tmp/rga-root/usr/lib/pkgconfig', '/usr/lib/aarch64-linux-gnu/pkgconfig']
+          # Если в вашей среде есть aarch64-linux-gnu-pkg-config, можно также использовать его, но обычно достаточно указать путь
+
           [host_machine]
           system = 'linux'
           cpu_family = 'aarch64'
@@ -148,13 +153,13 @@ jobs:
           EOF
 
           # Экспорт путей в переменные окружения для pkg-config
-          export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
-          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
+          #export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
+          #export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
 
           # Настройка mpv с исправленным синтаксисом флагов (исправлено -dxv на -Dxv)
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
             -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
-            -Dx11=disabled -Dxv=disabled -Dvaapi=disabled ## -Dnvdec=disabled
+            -Dx11=disabled -Dxv=disabled -Dvaapi=disabled ###-Dnvdec=disabled
           meson compile -C build
           
           mkdir -p /tmp/mpv-root
