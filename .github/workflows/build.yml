@@ -129,7 +129,7 @@ jobs:
           
           # Клонируем libplacebo из стабильного и быстрого GitHub-зеркала вместо официального сайта videolan
           mkdir -p subprojects
-          git clone --depth=1 --recursive https://github.com subprojects/libplacebo
+          meson wrap install libplacebo || true
           
           # Очищенный кросс-файл для Meson
           cat <<EOF > cross_file_mpv.txt
