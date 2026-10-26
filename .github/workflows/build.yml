@@ -127,6 +127,10 @@ jobs:
           git clone --depth=1 https://github.com/mpv-player/mpv.git
           cd mpv
           
+          ## Получаем libplacebo в подпроекты, чтобы плеер собрался монолитно без внешних x86 конфликтов
+          mkdir -p subprojects
+          git clone https://github.com/videolan/vlc.git --depth=1 --recursive  subprojects/libplacebo
+          
           # Очищенный кросс-файл для Meson
           cat <<EOF > cross_file_mpv.txt
           [binaries]
@@ -147,10 +151,10 @@ jobs:
           export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
 
-          # Настройка mpv: удалены несуществующие опции nvdec/vaapi, добавлено явное отключение libplacebo
+          # Настройка mpv с исправленным синтаксисом флагов (исправлено -dxv на -Dxv)
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
             -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
-            -Dx11=disabled -Dxv=disabled -Dlibplacebo=disabled
+            -Dx11=disabled -Dxv=disabled -Dvaapi=disabled -Dnvdec=disabled
           meson compile -C build
           
           mkdir -p /tmp/mpv-root
