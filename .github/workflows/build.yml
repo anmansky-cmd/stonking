@@ -137,8 +137,8 @@ jobs:
           # Создаём скрипт-обёртку pkg-config для кросс-компиляции
           cat <<'WRAPPER' > /tmp/aarch64-pkg-config
           #!/bin/sh
-          export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig
-          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
+          export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
           exec pkg-config "$@"
           WRAPPER
           chmod +x /tmp/aarch64-pkg-config
