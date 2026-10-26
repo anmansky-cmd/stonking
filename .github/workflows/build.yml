@@ -16,7 +16,7 @@ jobs:
           apt-get install -y build-essential cmake git libdrm-dev libudev-dev libasound2-dev \
             meson ninja-build python3-pip liblua5.2-dev libass-dev libjpeg-dev libv4l-dev \
             libgbm-dev libwayland-dev wayland-protocols libx11-dev libxext-dev \
-            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev checkinstall patchelf
+            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev checkinstall patchelf pkg-config
 
       - name: Build and Package RKMPP
         run: |
@@ -29,17 +29,18 @@ jobs:
             --maintainer="custom-build" --provides=rockchip-mpp make install
           cp *.deb ../
 
-      - name: Build and Package Librga (Updated Repo)
+      - name: Build and Package Librga (Nyanmisaka Mirror)
         run: |
-          # Клонируем актуальный репозиторий airockchip/librga
-          git clone --depth=1 https://github.com/airockchip/librga.git
-          cd librga
-          # Сборка через CMake, так как в актуальном репозитории используется именно он
-          cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_SHARED=ON .
-          make -j$(nproc)
+          # Использование проверенного форка rk-mirrors (ветка jellyfin-rga)
+          git clone -b jellyfin-rga --depth=1 https://github.com/nyanmisaka/rk-mirrors.git rkrga
+          cd rkrga
+          # Конфигурация через Meson
+          meson setup build_dir --prefix=/usr --libdir=lib --buildtype=release --default-library=shared \
+            -Dcpp_args=-fpermissive -Dlibdrm=false -Dlibrga_demo=false
+          meson compile -C build_dir
           echo "Rockchip RGA 2D graphics library" > description-pak
           checkinstall -y --default --pkgname=linux-rga --pkgversion=2.1.0 --pkgrelease=1 \
-            --maintainer="custom-build" --provides=linux-rga make install
+            --maintainer="custom-build" --provides=linux-rga meson install -C build_dir
           cp *.deb ../
 
       - name: Build and Package FFmpeg-Rockchip (Nyanmisaka)
@@ -47,6 +48,9 @@ jobs:
           # Устанавливаем ранее собранные MPP и RGA deb пакеты
           dpkg -i rockchip-mpp*.deb linux-rga*.deb
           ldconfig
+          
+          # Делаем обязательный симлинк для заголовочных файлов RGA, чтобы FFmpeg их увидел
+          ln -s /usr/include/rga /usr/include/rockchip || true
           
           git clone --depth=1 https://github.com/nyanmisaka/ffmpeg-rockchip.git
           cd ffmpeg-rockchip
