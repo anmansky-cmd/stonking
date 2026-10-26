@@ -127,9 +127,9 @@ jobs:
           git clone --depth=1 https://github.com/mpv-player/mpv.git
           cd mpv
           
-          # Получаем libplacebo в подпроекты, чтобы плеер собрался монолитно без внешних x86 конфликтов
+          # Клонируем libplacebo из стабильного и быстрого GitHub-зеркала вместо официального сайта videolan
           mkdir -p subprojects
-          git clone https://videolan.org --depth=1 --recursive subprojects/libplacebo
+          git clone --depth=1 --recursive https://github.com subprojects/libplacebo
           
           # Очищенный кросс-файл для Meson
           cat <<EOF > cross_file_mpv.txt
