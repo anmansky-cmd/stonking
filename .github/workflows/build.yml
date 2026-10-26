@@ -10,13 +10,26 @@ jobs:
       image: ubuntu:26.10 # Собираем строго в окружении зависимостей Ubuntu 26.10
 
     steps:
-      - name: Install Cross-Compilation Toolchains and Tools
+      - name: Install Cross-Compilation Toolchains and Target Dependencies (Multiarch)
         run: |
           apt-get update
-          # Устанавливаем кросс-компиляторы для ARM64 (aarch64) и утилиты сборки
+          apt-get install -y dpkg-dev
+          
+          # Включаем поддержку установки пакетов arm64 в x86_64 систему хоста
+          dpkg --add-architecture arm64
+          apt-get update
+          
+          # Базовый инструмент сборки и кросс-компиляторы
           apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ruby-dev rubygems snapd
-          # Устанавливаем утилиту FPM (отличный стабильный аналог checkinstall без багов архитектур)
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ruby-dev rubygems
+          
+          # Устанавливаем ARM64-версии системных библиотек, нужных для FFmpeg и MPV
+          apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
+            libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
+            libwayland-dev:arm64 wayland-protocols libx11-dev:arm64 libxext-dev:arm64 \
+            libegl1-mesa-dev:arm64 libgles2-mesa-dev:arm64 libvulkan-dev:arm64
+          
+          # Устанавливаем утилиту упаковки FPM
           gem install --no-document fpm
 
       - name: Cross-Build RKMPP (ARM64)
@@ -24,7 +37,6 @@ jobs:
           git clone --depth=1 https://github.com/rockchip-linux/mpp.git
           cd mpp
           
-          # Кросс-компиляция через CMake под aarch64
           cmake -DCMAKE_INSTALL_PREFIX=/usr \
                 -DCMAKE_SYSTEM_NAME=Linux \
                 -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
@@ -33,12 +45,10 @@ jobs:
                 -DENABLE_SHARED=ON -DENABLE_STATIC=OFF .
           make -j$(nproc)
           
-          # Готовим директорию для упаковки
           mkdir -p /tmp/mpp-root
           make install DESTDIR=/tmp/mpp-root
           rm -rf /tmp/mpp-root/usr/bin/*test* || true
           
-          # Упаковываем в чистый ARM64 DEB через FPM
           fpm -s dir -t deb -n rockchip-mpp -v 1.0.0 --architecture aarch64 \
             --maintainer "custom-build" --description "Rockchip MPP decoder library for ARM64" \
             -C /tmp/mpp-root usr
@@ -49,7 +59,6 @@ jobs:
           git clone -b jellyfin-rga --depth=1 https://github.com/nyanmisaka/rk-mirrors.git rkrga
           cd rkrga
           
-          # Пишем кросс-файл конфигурации для Meson
           cat <<EOF > cross_file.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -83,8 +92,9 @@ jobs:
           git clone --depth=1 https://github.com/nyanmisaka/ffmpeg-rockchip.git
           cd ffmpeg-rockchip
           
-          # Настраиваем переменные окружения, чтобы ffmpeg подхватил заголовочные файлы
-          export PKG_CONFIG_PATH=/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+          # Заставляем pkg-config смотреть в пути библиотек Multiarch (arm64) хост-системы и наших временных директорий
+          export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
           
           ./configure --prefix=/usr \
             --enable-gpl --enable-version3 \
@@ -94,8 +104,8 @@ jobs:
             --arch=aarch64 \
             --target-os=linux \
             --disable-x86asm \
-            --extra-cflags="-I/tmp/mpp-root/usr/include -I/tmp/rga-root/usr/include -I/tmp/rga-root/usr/include/rga" \
-            --extra-ldflags="-L/tmp/mpp-root/usr/lib -L/tmp/rga-root/usr/lib" \
+            --extra-cflags="-I/tmp/mpp-root/usr/include -I/tmp/rga-root/usr/include -I/tmp/rga-root/usr/include/rga -I/usr/include/aarch64-linux-gnu" \
+            --extra-ldflags="-L/tmp/mpp-root/usr/lib -L/tmp/rga-root/usr/lib -L/usr/lib/aarch64-linux-gnu" \
             --enable-libdrm --enable-rkmpp --enable-rkrga --enable-libv4l2
             
           make -j$(nproc)
@@ -114,7 +124,6 @@ jobs:
           git clone --depth=1 https://github.com/mpv-player/mpv.git
           cd mpv
           
-          # Используем тот же кросс-файл для Meson, добавляя пути к нашему кастомному ffmpeg
           cat <<EOF > cross_file_mpv.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -124,7 +133,7 @@ jobs:
           pkgconfig = 'pkg-config'
 
           [properties]
-          pkg_config_path = '/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig'
+          pkg_config_path = '/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mpp-root/usr/lib/pkgconfig:/tmp/rga-root/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig'
 
           [host_machine]
           system = 'linux'
@@ -133,8 +142,6 @@ jobs:
           endian = 'little'
           EOF
 
-          # Конфигурируем mpv без libplacebo, так как кросс-компиляция сторонней x86_64 placebo-dev вызвала бы конфликт линковки.
-          # Рендеринг видео будет идти через нативный zero-copy DRM/EGL контекст ядра Panthor.
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt -Dlibmpv=true -Dgpl=true
           meson compile -C build
           
