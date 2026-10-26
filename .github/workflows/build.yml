@@ -151,6 +151,10 @@ jobs:
           strip = 'aarch64-linux-gnu-strip'
           pkg-config = '/tmp/aarch64-pkg-config'
 
+          [properties]
+          c_args = ['-I/tmp/ffmpeg-root/usr/include', '-I/tmp/mpp-root/usr/include', '-I/tmp/rga-root/usr/include', '-I/tmp/rga-root/usr/include/rga']
+          c_link_args = ['-L/tmp/ffmpeg-root/usr/lib', '-L/tmp/mpp-root/usr/lib', '-L/tmp/rga-root/usr/lib']
+
           [host_machine]
           system = 'linux'
           cpu_family = 'aarch64'
