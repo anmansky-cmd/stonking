@@ -1,94 +1,98 @@
-name: Build RK3588 FFmpeg & MPV for Ubuntu 26.10
+name: Build RK3588 FFmpeg & MPV for Ubuntu 26.10 (Native ARM64)
 
 on:
-  workflow_dispatch: # Запуск сборки вручную из вкладки Actions
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:26.10 # Сборка происходит строго в окружении Ubuntu 26.10
-
     steps:
-      - name: Install build tools and base dependencies
-        run: |
-          apt-get update
-          # Добавлен libplacebo-dev, необходимый для современного mpv
-          apt-get install -y build-essential cmake git libdrm-dev libudev-dev libasound2-dev \
-            meson ninja-build python3-pip liblua5.2-dev libass-dev libjpeg-dev libv4l-dev \
-            libgbm-dev libwayland-dev wayland-protocols libx11-dev libxext-dev \
-            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev checkinstall patchelf pkg-config nasm \
-            libplacebo-dev
+      # Шаг 1: Инициализация эмулятора QEMU ARM64 на хосте GitHub
+      - name: Set up QEMU for ARM64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
-      - name: Build and Package RKMPP
-        run: |
-          git clone --depth=1 https://github.com/rockchip-linux/mpp.git
-          cd mpp
-          cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_SHARED=ON -DENABLE_STATIC=OFF .
-          make -j$(nproc)
+      # Шаг 2: Запуск контейнера Ubuntu 26.10 строго в режиме ARM64
+      - name: Run build inside native ARM64 container
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: aarch64
+          distro: ubuntu24.04 # Используем базовый rolling-контейнер, обновляя его до 26.10 изнутри
+          githubToken: ${{ github.token }}
           
-          find . -type f -executable -name "*test*" -delete || true
-          
-          echo "Rockchip MPP decoder library" > description-pak
-          # Добавлен флаг --architecture=arm64 для сборки под NanoPC-T6
-          checkinstall -y --default --pkgname=rockchip-mpp --pkgversion=1.0.0 --pkgrelease=1 \
-            --architecture=arm64 --maintainer="custom-build" --provides=rockchip-mpp \
-            --exclude="/usr/bin/cmake,/usr/share/cmake" make install
-          cp *.deb ../
+          run: |
+            # Обновляем дистрибутив до Ubuntu 26.10 (Stonking) внутри контейнера
+            apt-get update && apt-get install -y software-properties-common sed
+            sed -i 's/noble/oracular/g' /etc/apt/sources.list.d/ubuntu.sources || sed -i 's/noble/oracular/g' /etc/apt/sources.list
+            apt-get update && apt-get dist-upgrade -y
+            
+            # Устанавливаем инструменты сборки (nasm больше не нужен, так как мы на ARM64)
+            apt-get install -y build-essential cmake git libdrm-dev libudev-dev libasound2-dev \
+              meson ninja-build python3-pip liblua5.2-dev libass-dev libjpeg-dev libv4l-dev \
+              libgbm-dev libwayland-dev wayland-protocols libx11-dev libxext-dev \
+              libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev checkinstall patchelf pkg-config \
+              libplacebo-dev
 
-      - name: Build and Package Librga (Nyanmisaka Mirror)
-        run: |
-          git clone -b jellyfin-rga --depth=1 https://github.com/nyanmisaka/rk-mirrors.git rkrga
-          cd rkrga
-          meson setup build_dir --prefix=/usr --libdir=lib --buildtype=release --default-library=shared \
-            -Dcpp_args=-fpermissive -Dlibdrm=false -Dlibrga_demo=false
-          meson compile -C build_dir
-          echo "Rockchip RGA 2D graphics library" > description-pak
-          # Добавлен флаг --architecture=arm64
-          checkinstall -y --default --pkgname=linux-rga --pkgversion=2.1.0 --pkgrelease=1 \
-            --architecture=arm64 --maintainer="custom-build" --provides=linux-rga \
-            meson install -C build_dir
-          cp *.deb ../
+            # --- СБОРКА RKMPP ---
+            git clone --depth=1 https://github.com/rockchip-linux/mpp.git
+            cd mpp
+            cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_SHARED=ON -DENABLE_STATIC=OFF .
+            make -j$(nproc)
+            find . -type f -executable -name "*test*" -delete || true
+            echo "Rockchip MPP decoder library" > description-pak
+            checkinstall -y --default --pkgname=rockchip-mpp --pkgversion=1.0.0 --pkgrelease=1 \
+              --maintainer="custom-build" --provides=rockchip-mpp --exclude="/usr/bin/cmake,/usr/share/cmake" make install
+            cd ..
+            cp mpp/*.deb ./
 
-      - name: Build and Package FFmpeg-Rockchip (Nyanmisaka)
-        run: |
-          # Принудительно ставим пакеты, игнорируя разницу архитектур хоста сборщика (amd64) и пакета (arm64)
-          dpkg -i --force-architecture rockchip-mpp*.deb linux-rga*.deb
-          ldconfig
-          
-          ln -s /usr/include/rga /usr/include/rockchip || true
-          
-          git clone --depth=1 https://github.com/nyanmisaka/ffmpeg-rockchip.git
-          cd ffmpeg-rockchip
-          ./configure --prefix=/usr \
-            --enable-gpl --enable-version3 \
-            --enable-libdrm --enable-rkmpp --enable-rkrga \
-            --enable-libv4l2 --enable-shared --disable-static --disable-x86asm
-          make -j$(nproc)
-          echo "FFmpeg with Rockchip RK3588 hardware acceleration (nyanmisaka)" > description-pak
-          # Добавлен флаг --architecture=arm64
-          checkinstall -y --default --pkgname=ffmpeg-rockchip --pkgversion=7.1.0 --pkgrelease=1 \
-            --architecture=arm64 --maintainer="custom-build" --provides=ffmpeg,libavcodec,libavformat,libavutil \
-            make install
-          cp *.deb ../
+            # --- СБОРКА LIBRGA ---
+            git clone -b jellyfin-rga --depth=1 https://github.com/nyanmisaka/rk-mirrors.git rkrga
+            cd rkrga
+            meson setup build_dir --prefix=/usr --libdir=lib --buildtype=release --default-library=shared \
+              -Dcpp_args=-fpermissive -Dlibdrm=false -Dlibrga_demo=false
+            meson compile -C build_dir
+            echo "Rockchip RGA 2D graphics library" > description-pak
+            checkinstall -y --default --pkgname=linux-rga --pkgversion=2.1.0 --pkgrelease=1 \
+              --maintainer="custom-build" --provides=linux-rga meson install -C build_dir
+            cd ..
+            cp rkrga/*.deb ./
 
-      - name: Build and Package MPV
-        run: |
-          dpkg -i --force-architecture ffmpeg-rockchip*.deb
-          ldconfig
-          
-          git clone --depth=1 https://github.com/mpv-player/mpv.git
-          cd mpv
-          meson setup build --prefix=/usr -Dlibmpv=true
-          meson compile -C build
-          echo "MPV Player linked with FFmpeg-Rockchip" > description-pak
-          # Добавлен флаг --architecture=arm64
-          checkinstall -y --default --pkgname=mpv-rockchip --pkgversion=0.39.0 --pkgrelease=1 \
-            --architecture=arm64 --maintainer="custom-build" --provides=mpv \
-            meson install -C build
-          cp *.deb ../
+            # --- УСТАНОВКА ЗАВИСИМОСТЕЙ ПЕРЕД FFMPEG ---
+            dpkg -i rockchip-mpp*.deb linux-rga*.deb
+            ldconfig
+            ln -s /usr/include/rga /usr/include/rockchip || true
 
-      - name: Upload DEB Artifacts
+            # --- СБОРКА FFMPEG-ROCKCHIP ---
+            git clone --depth=1 https://github.com/nyanmisaka/ffmpeg-rockchip.git
+            cd ffmpeg-rockchip
+            # Убран флаг --disable-x86asm, компилятор теперь нативно понимает архитектуру ARM64
+            ./configure --prefix=/usr \
+              --enable-gpl --enable-version3 \
+              --enable-libdrm --enable-rkmpp --enable-rkrga \
+              --enable-libv4l2 --enable-shared --disable-static
+            make -j$(nproc)
+            echo "FFmpeg with Rockchip RK3588 hardware acceleration (nyanmisaka)" > description-pak
+            checkinstall -y --default --pkgname=ffmpeg-rockchip --pkgversion=7.1.0 --pkgrelease=1 \
+              --maintainer="custom-build" --provides=ffmpeg,libavcodec,libavformat,libavutil make install
+            cd ..
+            cp ffmpeg-rockchip/*.deb ./
+
+            # --- СБОРКА MPV ---
+            dpkg -i ffmpeg-rockchip*.deb
+            ldconfig
+            git clone --depth=1 https://github.com/mpv-player/mpv.git
+            cd mpv
+            meson setup build --prefix=/usr -Dlibmpv=true
+            meson compile -C build
+            echo "MPV Player linked with FFmpeg-Rockchip" > description-pak
+            checkinstall -y --default --pkgname=mpv-rockchip --pkgversion=0.39.0 --pkgrelease=1 \
+              --maintainer="custom-build" --provides=mpv meson install -C build
+            cd ..
+            cp mpv/*.deb ./
+
+      # Шаг 3: Выгрузка готовых нативных пакетов
+      - name: Upload Native ARM64 DEB Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rk3588-ubuntu-26.10-arm64-debs
