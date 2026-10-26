@@ -25,26 +25,26 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_SHARED=ON .
           make -j$(nproc)
           echo "Rockchip MPP decoder library" > description-pak
-          # Убран sudo, добавлен флаг --default для автоматического создания пакета
           checkinstall -y --default --pkgname=rockchip-mpp --pkgversion=1.0.0 --pkgrelease=1 \
             --maintainer="custom-build" --provides=rockchip-mpp make install
           cp *.deb ../
 
-      - name: Build and Package Librga
+      - name: Build and Package Librga (Updated Repo)
         run: |
+          # Клонируем актуальный репозиторий airockchip/librga
           git clone --depth=1 https://github.com/airockchip/librga.git
           cd librga
-          meson setup build --prefix=/usr
-          meson compile -C build
+          # Сборка через CMake, так как в актуальном репозитории используется именно он
+          cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_SHARED=ON .
+          make -j$(nproc)
           echo "Rockchip RGA 2D graphics library" > description-pak
-          # Убран sudo, добавлен флаг --default
-          checkinstall -y --default --pkgname=linux-rga --pkgversion=2.0.0 --pkgrelease=1 \
-            --maintainer="custom-build" --provides=linux-rga meson install -C build
+          checkinstall -y --default --pkgname=linux-rga --pkgversion=2.1.0 --pkgrelease=1 \
+            --maintainer="custom-build" --provides=linux-rga make install
           cp *.deb ../
 
       - name: Build and Package FFmpeg-Rockchip (Nyanmisaka)
         run: |
-          # Устанавливаем ранее собранные MPP и RGA deb пакеты (без sudo)
+          # Устанавливаем ранее собранные MPP и RGA deb пакеты
           dpkg -i rockchip-mpp*.deb linux-rga*.deb
           ldconfig
           
@@ -56,14 +56,13 @@ jobs:
             --enable-libv4l2 --enable-shared --disable-static
           make -j$(nproc)
           echo "FFmpeg with Rockchip RK3588 hardware acceleration (nyanmisaka)" > description-pak
-          # Убран sudo, добавлен флаг --default
           checkinstall -y --default --pkgname=ffmpeg-rockchip --pkgversion=7.1.0 --pkgrelease=1 \
             --maintainer="custom-build" --provides=ffmpeg,libavcodec,libavformat,libavutil make install
           cp *.deb ../
 
       - name: Build and Package MPV
         run: |
-          # Устанавливаем готовый FFmpeg-rockchip перед сборкой MPV (без sudo)
+          # Устанавливаем готовый FFmpeg-rockchip перед сборкой MPV
           dpkg -i ffmpeg-rockchip*.deb
           ldconfig
           
@@ -72,7 +71,6 @@ jobs:
           meson setup build --prefix=/usr -Dlibmpv=true
           meson compile -C build
           echo "MPV Player linked with FFmpeg-Rockchip" > description-pak
-          # Убран sudo, добавлен флаг --default
           checkinstall -y --default --pkgname=mpv-rockchip --pkgversion=0.39.0 --pkgrelease=1 \
             --maintainer="custom-build" --provides=mpv meson install -C build
           cp *.deb ../
