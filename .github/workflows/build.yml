@@ -27,7 +27,8 @@ jobs:
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
             libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
             libwayland-dev:arm64 wayland-protocols libx11-dev:arm64 libxext-dev:arm64 \
-            libegl1-mesa-dev:arm64 libgles2-mesa-dev:arm64 libvulkan-dev:arm64 libgnutls28-dev:arm64
+            libegl1-mesa-dev:arm64 libgles2-mesa-dev:arm64 libvulkan-dev:arm64 \
+            libgnutls28-dev:arm64 libluajit-5.1-dev:arm64
           
           # Устанавливаем утилиту упаковки FPM
           gem install --no-document fpm
