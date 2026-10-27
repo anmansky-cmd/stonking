@@ -106,7 +106,7 @@ jobs:
             --extra-cflags="-I/tmp/mpp-root/usr/include -I/tmp/rga-root/usr/include -I/tmp/rga-root/usr/include/rga -I/usr/include/aarch64-linux-gnu" \
             --extra-ldflags="-L/tmp/mpp-root/usr/lib -L/tmp/rga-root/usr/lib -L/usr/lib/aarch64-linux-gnu" \
             --enable-libdrm --enable-rkmpp --enable-rkrga --enable-libv4l2 \
-            --enable-network --enable-openssl --enable-protocol=http,https,tcp,tls
+            --enable-network --enable-gnutls --enable-protocol=http,https,tcp,tls
             
           make -j$(nproc)
           
