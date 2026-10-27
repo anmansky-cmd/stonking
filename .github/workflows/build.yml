@@ -172,7 +172,7 @@ jobs:
 
           meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
              -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
-             -Dx11=disabled -Dxv=disabled -Dvaapi=disabled
+             -Dx11=disabled -Dxv=disabled -Dvaapi=disabled -Dcplayer=true -Dlua=enabled
           meson compile -C build
           
           mkdir -p /tmp/mpv-root
