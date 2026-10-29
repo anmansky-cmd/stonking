@@ -128,7 +128,7 @@ jobs:
         run: |
           # Устанавливаем ARM64-версию libplacebo и dev-пакет
            apt-get install -y libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64
-          git clone --depth=1 --branch v0.41 https://github.com/mpv-player/mpv.git
+          git clone --depth=1 --branch v0.41.0 https://github.com/mpv-player/mpv.git
           cd mpv
           
           ## Получаем libplacebo в подпроекты, чтобы плеер собрался монолитно без внешних x86 конфликтов
@@ -179,7 +179,7 @@ jobs:
           mkdir -p /tmp/mpv-root
           DESTDIR=/tmp/mpv-root meson install -C build
           
-          fpm -s dir -t deb -n mpv-rockchip -v 0.41 --architecture aarch64 \
+          fpm -s dir -t deb -n mpv-rockchip -v 0.41.0 --architecture aarch64 \
             --maintainer "custom-build" \
             --provides "mpv" \
             --description "MPV Player cross-compiled for Rockchip RK3588" \
