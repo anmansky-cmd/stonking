@@ -64,6 +64,15 @@ jobs:
           # Сборка Mesa с Panfrost Gallium и PanVK Vulkan
           file $(command -v aarch64-linux-gnu-gcc) || true
           uname -m
+          # 1. Проверка прав на выполнение и типа файла
+          ls -l $(readlink -f $(which aarch64-linux-gnu-gcc))
+          file $(readlink -f $(which aarch64-linux-gnu-gcc))
+
+          # 2. Попытка прямого запуска для просмотра конкретной ошибки
+          aarch64-linux-gnu-gcc --version
+
+          # 3. Проверка зависимостей динамических библиотек
+          ldd $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
           meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
             --cross-file cross_file_mesa.txt \
             -Dgallium-drivers=panfrost \
