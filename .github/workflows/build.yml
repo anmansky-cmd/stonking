@@ -77,7 +77,7 @@ jobs:
 
           [properties]
           needs_exe_wrapper = false
-          c_args = ['-DHAVE___BUILTIN_BSWAP32', '-DHAVE___BUILTIN_BSWAP64']
+          c_args = ['-Dbswap64=__builtin_bswap64', '-Dbswap32=__builtin_bswap32']
 
           [host_machine]
           system = 'linux'
