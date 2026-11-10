@@ -29,7 +29,7 @@ jobs:
             libwayland-dev:arm64 wayland-protocols libx11-dev:arm64 libxext-dev:arm64 \
             libegl1-mesa-dev:arm64 libgles2-mesa-dev:arm64 libvulkan-dev:arm64 \
             libgnutls28-dev:arm64 libluajit-5.1-dev:arm64 libdav1d-dev:arm64 \
-            libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-dev:arm64
+            libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-20-dev:arm64
           
           # Зависимости сборки Mesa: LLVM/Clang, libclc, glslang, vulkan-loader
           apt-get install -y clang:arm64 lld:arm64 llvm:arm64 libclc-dev:arm64 \
