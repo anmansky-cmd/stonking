@@ -24,6 +24,12 @@ jobs:
              gcc-aarch64-linux-gnu:amd64 g++-aarch64-linux-gnu:amd64 ruby-dev rubygems \
             python3-pip python3-setuptools python3-mako python3-yaml file
           
+          # Удалите ранее установленный ARM64-пакет (если он есть)
+           apt-get remove -y gcc-aarch64-linux-gnu:arm64 g++-aarch64-linux-gnu:arm64 || true
+
+          # Установите пакет кросс-компилятора для x86_64 хостов
+          apt-get install -y gcc-15-aarch64-linux-gnu g++-15-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          
           # Зависимости для FFmpeg (V4L2 Request) и MPV
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
             libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
