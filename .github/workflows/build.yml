@@ -22,7 +22,7 @@ jobs:
           # Базовые инструменты сборки и кросс-компиляторы
           apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ruby-dev rubygems \
-            python3-pip python3-setuptools python3-mako python3-yaml
+            python3-pip python3-setuptools python3-mako python3-yaml file
           
           # Зависимости для FFmpeg (V4L2 Request) и MPV
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
