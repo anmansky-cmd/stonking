@@ -46,7 +46,7 @@ jobs:
           # Для Mesa нужен НАТИВНЫЙ (amd64) clang/llvm, чтобы сгенерировать shader-код
           # и ARM64-версии runtime-библиотек
           apt-get install -y llvm-18 clang-18 llvm-18-dev libclang-18-dev \
-            glslang-tools:arm64 libvulkan-dev:arm64 vulkan-tools:arm64
+            glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64
 
           # Установка FPM
           gem install --no-document fpm
