@@ -16,24 +16,22 @@ jobs:
           apt-get update
           apt-get install -y dpkg-dev file wget ca-certificates
 
-          # Устанавливаем кросс-компилятор ДО добавления arm64,
-          # чтобы apt выбрал x86_64-версию (cross1)
+          # Кросс-компилятор ставим ДО добавления arm64, чтобы получить x86_64-бинарник (cross1)
           apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-          # Проверка архитектуры компилятора
           echo "=== Compiler check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
 
-          # Только после этого добавляем arm64 для target-библиотек
+          # Теперь добавляем arm64 для target-библиотек
           dpkg --add-architecture arm64
           apt-get update
 
-          # Базовые инструменты сборки
+          # Базовые инструменты
           apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
             ruby-dev rubygems \
             python3-pip python3-setuptools python3-mako python3-yaml
 
-          # Зависимости для FFmpeg (V4L2 Request) и MPV
+          # Зависимости FFmpeg/MPV
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
             libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
             libwayland-dev:arm64 wayland-protocols libx11-dev:arm64 libxext-dev:arm64 \
@@ -41,21 +39,30 @@ jobs:
             libgnutls28-dev:arm64 libluajit-5.1-dev:arm64 libdav1d-dev:arm64 \
             libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-18-dev
 
-          # Зависимости сборки Mesa: LLVM/Clang, glslang, vulkan-loader
-          # Для Mesa нужен НАТИВНЫЙ (amd64) clang/llvm и glslang-tools
+          # Зависимости Mesa (нативные amd64 clang/llvm/glslang + ARM64 runtime)
           apt-get install -y llvm-18 clang-18 llvm-18-dev libclang-18-dev \
-            glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64 rustc cargo libstd-rust-dev:arm64 libclang-dev
+            glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64 \
+            rustc cargo libstd-rust-dev:arm64 libclang-dev
 
-          # Установка bindgen-cli (может занять некоторое время)
+          # bindgen для Mesa (Rust-компоненты)
           cargo install --locked bindgen-cli
-
-          # Добавляем ~/.cargo/bin в PATH для следующих шагов
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-          # Установка FPM
+          # FPM
           gem install --no-document fpm
 
-          # Проверка: компилятор должен быть x86_64-бинарником
+          # === Заглушка для bswap32/bswap64 ===
+          # Meson при кросс-компиляции проверяет наличие функций bswap32/bswap64
+          # в libc ARM64, но их там нет (в x86_64 они есть как макросы/функции).
+          # Создаём фиктивные реализации на основе __builtin_bswap*, чтобы
+          # проверка cc.has_function() прошла успешно.
+          cat <<'EOF' > /tmp/bswap_stub.c
+          #include <stdint.h>
+          uint32_t bswap32(uint32_t x) { return __builtin_bswap32(x); }
+          uint64_t bswap64(uint64_t x) { return __builtin_bswap64(x); }
+          EOF
+          aarch64-linux-gnu-gcc -c /tmp/bswap_stub.c -o /tmp/bswap_stub.o
+
           echo "=== Compiler architecture check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
 
@@ -64,7 +71,6 @@ jobs:
           git clone --depth=1 https://gitlab.freedesktop.org/mesa/mesa.git
           cd mesa
 
-          # Кросс-файл Meson для Mesa
           cat <<EOF > cross_file_mesa.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -75,9 +81,12 @@ jobs:
           llvm-config = 'llvm-config-18'
           rust = ['rustc', '--target', 'aarch64-unknown-linux-gnu']
 
+          [built-in options]
+          c_args = ['-DHAVE___BUILTIN_BSWAP32=1', '-DHAVE___BUILTIN_BSWAP64=1']
+          c_link_args = ['/tmp/bswap_stub.o']
+
           [properties]
           needs_exe_wrapper = false
-          c_args = ['-Dbswap64=__builtin_bswap64', '-Dbswap32=__builtin_bswap32']
 
           [host_machine]
           system = 'linux'
@@ -86,12 +95,10 @@ jobs:
           endian = 'little'
           EOF
 
-          # Проверка архитектуры компилятора
           echo "=== Compiler check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
 
-          # Ключевой момент: заставляем pkg-config искать .pc-файлы
-          # ТОЛЬКО для целевой архитектуры (arm64), игнорируя x86_64
+          # Ключевой момент: pkg-config должен искать .pc только для ARM64
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 
           meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
@@ -162,7 +169,6 @@ jobs:
             https://github.com/Kwiboo/mpv.git mpv-v4l2
           cd mpv-v4l2
 
-          # Обёртка pkg-config для кросс-компиляции
           cat <<'WRAPPER' > /tmp/aarch64-pkg-config
           #!/bin/sh
           export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mesa-root/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
@@ -191,7 +197,6 @@ jobs:
           endian = 'little'
           EOF
 
-          # Патчи совместимости (если версия FFmpeg новее, чем поддерживает mpv)
           sed -i 's/FF_PROFILE_/AV_PROFILE_/g' demux/demux_mkv.c 2>/dev/null || true
           sed -i '/av_format_inject_global_side_data/d' demux/demux_lavf.c 2>/dev/null || true
 
