@@ -62,6 +62,7 @@ jobs:
           EOF
           
           # Сборка Mesa с Panfrost Gallium и PanVK Vulkan
+          file $(which aarch64-linux-gnu-gcc)
           meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
             --cross-file cross_file_mesa.txt \
             -Dgallium-drivers=panfrost \
