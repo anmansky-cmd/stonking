@@ -49,6 +49,9 @@ jobs:
           # Установка bindgen-cli (может занять некоторое время)
           cargo install --locked bindgen-cli
 
+          # Добавляем ~/.cargo/bin в PATH для следующих шагов
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
           # Установка FPM
           gem install --no-document fpm
 
