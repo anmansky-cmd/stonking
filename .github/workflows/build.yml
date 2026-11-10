@@ -91,7 +91,11 @@ jobs:
           rust = ['rustc', '--target', 'aarch64-unknown-linux-gnu']
 
           [built-in options]
-          c_args = ['-DHAVE___BUILTIN_BSWAP32=1', '-DHAVE___BUILTIN_BSWAP64=1']
+          c_args = ['-DHAVE___BUILTIN_BSWAP32=1', '-DHAVE___BUILTIN_BSWAP64=1',
+          '-DHAVE___BUILTIN_CLZ=1', '-DHAVE___BUILTIN_CLZLL=1',
+          '-DHAVE___BUILTIN_CTZ=1', '-DHAVE___BUILTIN_CTZLL=1',
+          '-DHAVE___BUILTIN_FFS=1', '-DHAVE___BUILTIN_FFSLL=1',
+          '-DHAVE___BUILTIN_POPCOUNT=1', '-DHAVE___BUILTIN_POPCOUNTLL=1']
           c_link_args = ['/tmp/bswap_stub.o']
 
           [properties]
