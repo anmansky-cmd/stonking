@@ -33,7 +33,6 @@ jobs:
             ruby-dev rubygems \
             python3-pip python3-setuptools python3-mako python3-yaml
 
-          # ... остальные зависимости без изменений ...
           # Зависимости для FFmpeg (V4L2 Request) и MPV
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
             libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
@@ -43,8 +42,7 @@ jobs:
             libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-18-dev
 
           # Зависимости сборки Mesa: LLVM/Clang, glslang, vulkan-loader
-          # Для Mesa нужен НАТИВНЫЙ (amd64) clang/llvm, чтобы сгенерировать shader-код
-          # и ARM64-версии runtime-библиотек
+          # Для Mesa нужен НАТИВНЫЙ (amd64) clang/llvm и glslang-tools
           apt-get install -y llvm-18 clang-18 llvm-18-dev libclang-18-dev \
             glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64
 
@@ -72,7 +70,6 @@ jobs:
 
           [properties]
           needs_exe_wrapper = false
-          pkg_config_path = '/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig'
 
           [host_machine]
           system = 'linux'
@@ -84,6 +81,10 @@ jobs:
           # Проверка архитектуры компилятора
           echo "=== Compiler check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
+
+          # Ключевой момент: заставляем pkg-config искать .pc-файлы
+          # ТОЛЬКО для целевой архитектуры (arm64), игнорируя x86_64
+          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 
           meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
             --cross-file cross_file_mesa.txt \
