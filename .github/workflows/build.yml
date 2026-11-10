@@ -27,7 +27,7 @@ jobs:
           apt-get update
 
           # Базовые инструменты
-          apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
+          apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm byacc \
             ruby-dev rubygems \
             python3-pip python3-setuptools python3-mako python3-yaml
 
