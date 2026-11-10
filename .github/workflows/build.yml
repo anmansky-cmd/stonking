@@ -44,7 +44,7 @@ jobs:
           # Зависимости сборки Mesa: LLVM/Clang, glslang, vulkan-loader
           # Для Mesa нужен НАТИВНЫЙ (amd64) clang/llvm и glslang-tools
           apt-get install -y llvm-18 clang-18 llvm-18-dev libclang-18-dev \
-            glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64
+            glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64 rustc cargo
 
           # Установка FPM
           gem install --no-document fpm
@@ -67,6 +67,7 @@ jobs:
           strip = 'aarch64-linux-gnu-strip'
           pkg-config = 'pkg-config'
           llvm-config = 'llvm-config-18'
+          rust = ['rustc', '--target', 'aarch64-unknown-linux-gnu']
 
           [properties]
           needs_exe_wrapper = false
