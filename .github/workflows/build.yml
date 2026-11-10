@@ -14,22 +14,17 @@ jobs:
       - name: Install Cross-Compilation Toolchains and Target Dependencies (Multiarch)
         run: |
           apt-get update
-          apt-get install -y dpkg-dev
-          
+          apt-get install -y dpkg-dev file
+
           dpkg --add-architecture arm64
           apt-get update
-          
-          # Базовые инструменты сборки и кросс-компиляторы
-          apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
-             gcc-aarch64-linux-gnu:amd64 g++-aarch64-linux-gnu:amd64 ruby-dev rubygems \
-            python3-pip python3-setuptools python3-mako python3-yaml file
-          
-          # Удалите ранее установленный ARM64-пакет (если он есть)
-           apt-get remove -y gcc-aarch64-linux-gnu:arm64 g++-aarch64-linux-gnu:arm64 || true
 
-          # Установите пакет кросс-компилятора для x86_64 хостов
-          apt-get install -y gcc-15-aarch64-linux-gnu g++-15-aarch64-linux-gnu binutils-aarch64-linux-gnu
-          
+          # Базовые инструменты сборки + правильный кросс-компилятор для x86_64 хоста
+          # crossbuild-essential-arm64 предоставляет x86_64-бинарники gcc/g++ для генерации ARM64-кода
+          apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
+            crossbuild-essential-arm64 ruby-dev rubygems \
+            python3-pip python3-setuptools python3-mako python3-yaml
+
           # Зависимости для FFmpeg (V4L2 Request) и MPV
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
             libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
@@ -37,19 +32,22 @@ jobs:
             libegl1-mesa-dev:arm64 libgles2-mesa-dev:arm64 libvulkan-dev:arm64 \
             libgnutls28-dev:arm64 libluajit-5.1-dev:arm64 libdav1d-dev:arm64 \
             libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-18-dev
-          
+
           # Зависимости сборки Mesa: LLVM/Clang, libclc, glslang, vulkan-loader
           apt-get install -y clang:arm64 lld:arm64 llvm:arm64 libclc-18-dev \
             glslang-tools:arm64 libvulkan-dev:arm64 vulkan-tools:arm64
-          
+
           # Установка FPM
           gem install --no-document fpm
+
+          # Диагностика: проверяем, что компилятор — x86_64-бинарник
+          file $(which aarch64-linux-gnu-gcc) || true
 
       - name: Cross-Build Mesa with Panfrost (PanVK) for ARM64
         run: |
           git clone --depth=1 https://gitlab.freedesktop.org/mesa/mesa.git
           cd mesa
-          
+
           # Создание кросс-файла Meson для Mesa
           cat <<EOF > cross_file_mesa.txt
           [binaries]
@@ -60,25 +58,19 @@ jobs:
           pkg-config = 'pkg-config'
           llvm-config = 'llvm-config-18'
 
+          [properties]
+          needs_exe_wrapper = false
+
           [host_machine]
           system = 'linux'
           cpu_family = 'aarch64'
           cpu = 'cortex-a76'
           endian = 'little'
           EOF
-          
-          # Сборка Mesa с Panfrost Gallium и PanVK Vulkan
-          file $(command -v aarch64-linux-gnu-gcc) || true
-          uname -m
-          # 1. Проверка прав на выполнение и типа файла
-          ls -l $(readlink -f $(which aarch64-linux-gnu-gcc))
-          file $(readlink -f $(which aarch64-linux-gnu-gcc))
 
-          # 2. Попытка прямого запуска для просмотра конкретной ошибки
-          aarch64-linux-gnu-gcc --version
+          # Проверка архитектуры компилятора перед сборкой
+          file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
 
-          # 3. Проверка зависимостей динамических библиотек
-          ldd $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
           meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
             --cross-file cross_file_mesa.txt \
             -Dgallium-drivers=panfrost \
@@ -87,12 +79,12 @@ jobs:
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
             -Dllvm=enabled -Dshared-glapi=enabled \
             -Dbuild-tests=false
-          
+
           meson compile -C build
-          
+
           mkdir -p /tmp/mesa-root
           DESTDIR=/tmp/mesa-root meson install -C build
-          
+
           fpm -s dir -t deb -n mesa-panfrost -v 25.0.0 --architecture aarch64 \
             --maintainer "custom-build" \
             --provides "libgl1" --provides "libegl1" --provides "libgles2" \
@@ -108,10 +100,10 @@ jobs:
           cd ffmpeg-v4l2
           git fetch -u https://code.ffmpeg.org/Kwiboo/FFmpeg v4l2request-v3:Kwiboo-v4l2request-v3
           git switch Kwiboo-v4l2request-v3
-          
+
           export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
-          
+
           ./configure --prefix=/usr \
             --enable-gpl --enable-version3 \
             --enable-shared --disable-static \
@@ -128,12 +120,12 @@ jobs:
             --enable-libv4l2 \
             --enable-libdav1d \
             --enable-network --enable-gnutls --enable-protocol=http,https,tcp,tls
-            
+
           make -j$(nproc)
-          
+
           mkdir -p /tmp/ffmpeg-root
           make install DESTDIR=/tmp/ffmpeg-root
-          
+
           fpm -s dir -t deb -n ffmpeg-v4l2 -v 7.1.0 --architecture aarch64 \
             --maintainer "custom-build" \
             --provides "ffmpeg" --provides "libavcodec" --provides "libavformat" \
@@ -148,7 +140,7 @@ jobs:
           git clone --depth=1 --branch v4l2request-test-20240808 \
             https://github.com/Kwiboo/mpv.git mpv-v4l2
           cd mpv-v4l2
-          
+
           # Создание обёртки pkg-config
           cat <<'WRAPPER' > /tmp/aarch64-pkg-config
           #!/bin/sh
@@ -169,6 +161,7 @@ jobs:
           [properties]
           c_args = ['-I/tmp/ffmpeg-root/usr/include', '-I/tmp/mesa-root/usr/include']
           c_link_args = ['-L/tmp/ffmpeg-root/usr/lib', '-L/tmp/mesa-root/usr/lib/aarch64-linux-gnu']
+          needs_exe_wrapper = false
 
           [host_machine]
           system = 'linux'
@@ -187,10 +180,10 @@ jobs:
              -Dcplayer=true -Dlua=enabled \
              -Dv4l2request=enabled
           meson compile -C build
-          
+
           mkdir -p /tmp/mpv-root
           DESTDIR=/tmp/mpv-root meson install -C build
-          
+
           fpm -s dir -t deb -n mpv-v4l2 -v 0.39.0 --architecture aarch64 \
             --maintainer "custom-build" \
             --provides "mpv" \
