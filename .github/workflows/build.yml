@@ -1,0 +1,187 @@
+name: Cross-Build RK3588 V4L2 Request FFmpeg, MPV & Mesa Panfrost for Ubuntu 26.10 (ARM64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:26.10
+
+    steps:
+      - name: Install Cross-Compilation Toolchains and Target Dependencies (Multiarch)
+        run: |
+          apt-get update
+          apt-get install -y dpkg-dev
+          
+          dpkg --add-architecture arm64
+          apt-get update
+          
+          # Базовые инструменты сборки и кросс-компиляторы
+          apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu ruby-dev rubygems \
+            python3-pip python3-setuptools python3-mako python3-yaml
+          
+          # Зависимости для FFmpeg (V4L2 Request) и MPV
+          apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
+            libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
+            libwayland-dev:arm64 wayland-protocols libx11-dev:arm64 libxext-dev:arm64 \
+            libegl1-mesa-dev:arm64 libgles2-mesa-dev:arm64 libvulkan-dev:arm64 \
+            libgnutls28-dev:arm64 libluajit-5.1-dev:arm64 libdav1d-dev:arm64 \
+            libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64
+          
+          # Зависимости сборки Mesa: LLVM/Clang, libclc, glslang, vulkan-loader
+          apt-get install -y clang:arm64 lld:arm64 llvm:arm64 libclc-dev:arm64 \
+            glslang-tools:arm64 libvulkan-dev:arm64 vulkan-tools:arm64
+          
+          # Установка FPM
+          gem install --no-document fpm
+
+      - name: Cross-Build Mesa with Panfrost (PanVK) for ARM64
+        run: |
+          git clone --depth=1 https://gitlab.freedesktop.org/mesa/mesa.git
+          cd mesa
+          
+          # Создание кросс-файла Meson для Mesa
+          cat <<EOF > cross_file_mesa.txt
+          [binaries]
+          c = 'aarch64-linux-gnu-gcc'
+          cpp = 'aarch64-linux-gnu-g++'
+          ar = 'aarch64-linux-gnu-ar'
+          strip = 'aarch64-linux-gnu-strip'
+          pkg-config = 'pkg-config'
+          llvm-config = 'llvm-config-18'
+
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'cortex-a76'
+          endian = 'little'
+          EOF
+          
+          # Сборка Mesa с Panfrost Gallium и PanVK Vulkan
+          meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
+            --cross-file cross_file_mesa.txt \
+            -Dgallium-drivers=panfrost \
+            -Dvulkan-drivers=panfrost \
+            -Dplatforms=wayland,x11 \
+            -Dglx=dri -Degl=enabled -Dgles2=enabled \
+            -Dllvm=enabled -Dshared-glapi=enabled \
+            -Dbuild-tests=false
+          
+          meson compile -C build
+          
+          mkdir -p /tmp/mesa-root
+          DESTDIR=/tmp/mesa-root meson install -C build
+          
+          fpm -s dir -t deb -n mesa-panfrost -v 25.0.0 --architecture aarch64 \
+            --maintainer "custom-build" \
+            --provides "libgl1" --provides "libegl1" --provides "libgles2" \
+            --provides "libvulkan1" \
+            --description "Mesa with Panfrost/PanVK for RK3588 Mali-G610" \
+            -C /tmp/mesa-root usr
+          cp *.deb ../
+
+      - name: Cross-Build FFmpeg with V4L2 Request API (ARM64)
+        run: |
+          # Клонирование официального FFmpeg и переключение на ветку v4l2request от Kwiboo
+          git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg-v4l2
+          cd ffmpeg-v4l2
+          git fetch -u https://code.ffmpeg.org/Kwiboo/FFmpeg v4l2request-v3:Kwiboo-v4l2request-v3
+          git switch Kwiboo-v4l2request-v3
+          
+          export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
+          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
+          
+          ./configure --prefix=/usr \
+            --enable-gpl --enable-version3 \
+            --enable-shared --disable-static \
+            --enable-cross-compile \
+            --cross-prefix=aarch64-linux-gnu- \
+            --arch=aarch64 \
+            --target-os=linux \
+            --disable-x86asm \
+            --extra-cflags="-I/usr/include/aarch64-linux-gnu" \
+            --extra-ldflags="-L/usr/lib/aarch64-linux-gnu" \
+            --enable-v4l2-request \
+            --enable-libdrm \
+            --enable-libudev \
+            --enable-libv4l2 \
+            --enable-libdav1d \
+            --enable-network --enable-gnutls --enable-protocol=http,https,tcp,tls
+            
+          make -j$(nproc)
+          
+          mkdir -p /tmp/ffmpeg-root
+          make install DESTDIR=/tmp/ffmpeg-root
+          
+          fpm -s dir -t deb -n ffmpeg-v4l2 -v 7.1.0 --architecture aarch64 \
+            --maintainer "custom-build" \
+            --provides "ffmpeg" --provides "libavcodec" --provides "libavformat" \
+            --description "FFmpeg with V4L2 Request API for RK3588" \
+            -C /tmp/ffmpeg-root usr
+          cp *.deb ../
+
+      - name: Cross-Build MPV with V4L2 Request Support (ARM64)
+        run: |
+          # ВАЖНО: mpv mainline пока не поддерживает v4l2request, используем тестовую ветку Kwiboo
+          # Если ветка недоступна, можно вручную применить PR #14511
+          git clone --depth=1 --branch v4l2request-test-20240808 \
+            https://github.com/Kwiboo/mpv.git mpv-v4l2
+          cd mpv-v4l2
+          
+          # Создание обёртки pkg-config
+          cat <<'WRAPPER' > /tmp/aarch64-pkg-config
+          #!/bin/sh
+          export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mesa-root/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+          exec pkg-config "$@"
+          WRAPPER
+          chmod +x /tmp/aarch64-pkg-config
+
+          cat <<EOF > cross_file_mpv.txt
+          [binaries]
+          c = 'aarch64-linux-gnu-gcc'
+          cpp = 'aarch64-linux-gnu-g++'
+          ar = 'aarch64-linux-gnu-ar'
+          strip = 'aarch64-linux-gnu-strip'
+          pkg-config = '/tmp/aarch64-pkg-config'
+
+          [properties]
+          c_args = ['-I/tmp/ffmpeg-root/usr/include', '-I/tmp/mesa-root/usr/include']
+          c_link_args = ['-L/tmp/ffmpeg-root/usr/lib', '-L/tmp/mesa-root/usr/lib/aarch64-linux-gnu']
+
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'cortex-a76'
+          endian = 'little'
+          EOF
+
+          # Патчи совместимости (если версия FFmpeg новее, чем поддерживает mpv)
+          sed -i 's/FF_PROFILE_/AV_PROFILE_/g' demux/demux_mkv.c 2>/dev/null || true
+          sed -i '/av_format_inject_global_side_data/d' demux/demux_lavf.c 2>/dev/null || true
+
+          meson setup build --prefix=/usr --cross-file cross_file_mpv.txt \
+             -Dlibmpv=true -Dgpl=true -Dgl=enabled -Dwayland=enabled \
+             -Dx11=disabled -Dxv=disabled -Dvaapi=disabled \
+             -Dcplayer=true -Dlua=enabled \
+             -Dv4l2request=enabled
+          meson compile -C build
+          
+          mkdir -p /tmp/mpv-root
+          DESTDIR=/tmp/mpv-root meson install -C build
+          
+          fpm -s dir -t deb -n mpv-v4l2 -v 0.39.0 --architecture aarch64 \
+            --maintainer "custom-build" \
+            --provides "mpv" \
+            --description "MPV with V4L2 Request API for RK3588" \
+            -C /tmp/mpv-root usr
+          cp *.deb ../
+
+      - name: Upload ARM64 DEB Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rk3588-ubuntu-26.10-v4l2-panfrost-debs
+          path: ./*.deb
