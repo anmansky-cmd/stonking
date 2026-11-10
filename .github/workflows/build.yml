@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ubuntu:26.10
+      options: --platform linux/amd64
 
     steps:
       - name: Install Cross-Compilation Toolchains and Target Dependencies (Multiarch)
