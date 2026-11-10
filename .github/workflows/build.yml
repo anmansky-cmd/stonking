@@ -57,6 +57,7 @@ jobs:
           cat <<'EOF' > /tmp/bswap_stub.c
           #include <stdint.h>
           #include <stdbool.h>
+          #include <stddef.h>
 
           uint32_t bswap32(uint32_t x) { return __builtin_bswap32(x); }
           uint64_t bswap64(uint64_t x) { return __builtin_bswap64(x); }
@@ -71,6 +72,11 @@ jobs:
           unsigned int __builtin_arm_get_fpscr(void) { return 0; }
           void __builtin_arm_set_fpscr(unsigned int x) { (void)x; }
           bool __builtin_add_overflow(void) { return false; }
+          bool __builtin_sub_overflow(void) { return false; }
+          bool __builtin_mul_overflow(void) { return false; }
+          void qsort_s(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *, void *), void *context) {
+             (void)base; (void)nmemb; (void)size; (void)compar; (void)context;
+          }
           EOF
           aarch64-linux-gnu-gcc -c /tmp/bswap_stub.c -o /tmp/bswap_stub.o
 
