@@ -93,7 +93,8 @@ jobs:
             -Dplatforms=wayland,x11 \
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
             -Dllvm=enabled \
-            -Dbuild-tests=false
+            -Dbuild-tests=false \
+            -Dgallium-rusticl=false
 
           meson compile -C build
 
