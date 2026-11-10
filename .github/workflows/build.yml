@@ -43,7 +43,9 @@ jobs:
           apt-get install -y llvm-18 clang-18 llvm-18-dev libclang-18-dev \
             glslang-tools libvulkan-dev:arm64 vulkan-tools:arm64 \
             rustc cargo libstd-rust-dev:arm64 libclang-dev libllvmspirvlib-18-dev:arm64 \
-            spirv-tools-dev:arm64 libwayland-egl-backend-dev:arm64 libxcb-randr0-dev:arm64 libxcb-glx0-dev:arm64
+            spirv-tools-dev:arm64 libwayland-egl-backend-dev:arm64 libxcb-randr0-dev:arm64 libxcb-glx0-dev:arm64 \
+            libxcb-shm0-dev:arm64
+            
 
           # bindgen для Mesa (Rust-компоненты)
           cargo install --locked bindgen-cli
