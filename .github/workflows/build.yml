@@ -16,11 +16,15 @@ jobs:
           apt-get update
           apt-get install -y dpkg-dev file wget ca-certificates
 
-          # Сначала устанавливаем кросс-компилятор для amd64 БЕЗ добавления архитектуры arm64
-          # Это гарантирует, что apt выберет x86_64-бинарник (cross1), а не ARM64-бинарник
-          apt-get install -y gcc-15-aarch64-linux-gnu:amd64 g++-15-aarch64-linux-gnu:amd64
+          # Устанавливаем кросс-компилятор ДО добавления arm64,
+          # чтобы apt выбрал x86_64-версию (cross1)
+          apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-          # Только после установки кросс-компилятора добавляем архитектуру arm64
+          # Проверка архитектуры компилятора
+          echo "=== Compiler check ==="
+          file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
+
+          # Только после этого добавляем arm64 для target-библиотек
           dpkg --add-architecture arm64
           apt-get update
 
@@ -29,6 +33,7 @@ jobs:
             ruby-dev rubygems \
             python3-pip python3-setuptools python3-mako python3-yaml
 
+          # ... остальные зависимости без изменений ...
           # Зависимости для FFmpeg (V4L2 Request) и MPV
           apt-get install -y libv4l-dev:arm64 libdrm-dev:arm64 libudev-dev:arm64 \
             libasound2-dev:arm64 libass-dev:arm64 libjpeg-dev:arm64 libgbm-dev:arm64 \
