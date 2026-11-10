@@ -14,15 +14,19 @@ jobs:
       - name: Install Cross-Compilation Toolchains and Target Dependencies (Multiarch)
         run: |
           apt-get update
-          apt-get install -y dpkg-dev file
+          apt-get install -y dpkg-dev file wget ca-certificates
 
+          # Сначала устанавливаем кросс-компилятор для amd64 БЕЗ добавления архитектуры arm64
+          # Это гарантирует, что apt выберет x86_64-бинарник (cross1), а не ARM64-бинарник
+          apt-get install -y gcc-15-aarch64-linux-gnu:amd64 g++-15-aarch64-linux-gnu:amd64
+
+          # Только после установки кросс-компилятора добавляем архитектуру arm64
           dpkg --add-architecture arm64
           apt-get update
 
-          # Базовые инструменты сборки + правильный кросс-компилятор для x86_64 хоста
-          # crossbuild-essential-arm64 предоставляет x86_64-бинарники gcc/g++ для генерации ARM64-кода
+          # Базовые инструменты сборки
           apt-get install -y build-essential cmake git meson ninja-build pkg-config nasm \
-            crossbuild-essential-arm64 ruby-dev rubygems \
+            ruby-dev rubygems \
             python3-pip python3-setuptools python3-mako python3-yaml
 
           # Зависимости для FFmpeg (V4L2 Request) и MPV
@@ -33,22 +37,25 @@ jobs:
             libgnutls28-dev:arm64 libluajit-5.1-dev:arm64 libdav1d-dev:arm64 \
             libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-18-dev
 
-          # Зависимости сборки Mesa: LLVM/Clang, libclc, glslang, vulkan-loader
-          apt-get install -y clang:arm64 lld:arm64 llvm:arm64 libclc-18-dev \
+          # Зависимости сборки Mesa: LLVM/Clang, glslang, vulkan-loader
+          # Для Mesa нужен НАТИВНЫЙ (amd64) clang/llvm, чтобы сгенерировать shader-код
+          # и ARM64-версии runtime-библиотек
+          apt-get install -y llvm-18 clang-18 llvm-18-dev libclang-18-dev \
             glslang-tools:arm64 libvulkan-dev:arm64 vulkan-tools:arm64
 
           # Установка FPM
           gem install --no-document fpm
 
-          # Диагностика: проверяем, что компилятор — x86_64-бинарник
-          file $(which aarch64-linux-gnu-gcc) || true
+          # Проверка: компилятор должен быть x86_64-бинарником
+          echo "=== Compiler architecture check ==="
+          file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
 
       - name: Cross-Build Mesa with Panfrost (PanVK) for ARM64
         run: |
           git clone --depth=1 https://gitlab.freedesktop.org/mesa/mesa.git
           cd mesa
 
-          # Создание кросс-файла Meson для Mesa
+          # Кросс-файл Meson для Mesa
           cat <<EOF > cross_file_mesa.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -68,7 +75,8 @@ jobs:
           endian = 'little'
           EOF
 
-          # Проверка архитектуры компилятора перед сборкой
+          # Проверка архитектуры компилятора
+          echo "=== Compiler check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
 
           meson setup build --prefix=/usr --libdir=lib/aarch64-linux-gnu \
@@ -77,7 +85,7 @@ jobs:
             -Dvulkan-drivers=panfrost \
             -Dplatforms=wayland,x11 \
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
-            -Dllvm=enabled -Dshared-glapi=enabled \
+            -Dllvm=enabled \
             -Dbuild-tests=false
 
           meson compile -C build
@@ -95,7 +103,6 @@ jobs:
 
       - name: Cross-Build FFmpeg with V4L2 Request API (ARM64)
         run: |
-          # Клонирование официального FFmpeg и переключение на ветку v4l2request от Kwiboo
           git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg-v4l2
           cd ffmpeg-v4l2
           git fetch -u https://code.ffmpeg.org/Kwiboo/FFmpeg v4l2request-v3:Kwiboo-v4l2request-v3
@@ -135,13 +142,11 @@ jobs:
 
       - name: Cross-Build MPV with V4L2 Request Support (ARM64)
         run: |
-          # ВАЖНО: mpv mainline пока не поддерживает v4l2request, используем тестовую ветку Kwiboo
-          # Если ветка недоступна, можно вручную применить PR #14511
           git clone --depth=1 --branch v4l2request-test-20240808 \
             https://github.com/Kwiboo/mpv.git mpv-v4l2
           cd mpv-v4l2
 
-          # Создание обёртки pkg-config
+          # Обёртка pkg-config для кросс-компиляции
           cat <<'WRAPPER' > /tmp/aarch64-pkg-config
           #!/bin/sh
           export PKG_CONFIG_PATH=/tmp/ffmpeg-root/usr/lib/pkgconfig:/tmp/mesa-root/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
