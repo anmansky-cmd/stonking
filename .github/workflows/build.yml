@@ -32,7 +32,7 @@ jobs:
             libplacebo-dev:arm64 libbz2-dev:arm64 libxkbcommon-dev:arm64 libclc-20-dev:arm64
           
           # Зависимости сборки Mesa: LLVM/Clang, libclc, glslang, vulkan-loader
-          apt-get install -y clang:arm64 lld:arm64 llvm:arm64 libclc-dev:arm64 \
+          apt-get install -y clang:arm64 lld:arm64 llvm:arm64 libclc-20-dev:arm64 \
             glslang-tools:arm64 libvulkan-dev:arm64 vulkan-tools:arm64
           
           # Установка FPM
