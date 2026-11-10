@@ -67,6 +67,8 @@ jobs:
           int ffsll(long long x) { return __builtin_ffsll(x); }
           int popcount(unsigned int x) { return __builtin_popcount(x); }
           int popcountll(unsigned long long x) { return __builtin_popcountll(x); }
+          unsigned int __builtin_arm_get_fpscr(void) { return 0; }
+          void __builtin_arm_set_fpscr(unsigned int x) { (void)x; }
           EOF
           aarch64-linux-gnu-gcc -c /tmp/bswap_stub.c -o /tmp/bswap_stub.o
 
