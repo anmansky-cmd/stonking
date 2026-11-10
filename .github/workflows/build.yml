@@ -46,16 +46,14 @@ jobs:
 
           # bindgen для Mesa (Rust-компоненты)
           cargo install --locked bindgen-cli
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
           # FPM
           gem install --no-document fpm
 
-          # === Заглушка для bswap32/bswap64 ===
-          # Meson при кросс-компиляции проверяет наличие функций bswap32/bswap64
-          # в libc ARM64, но их там нет (в x86_64 они есть как макросы/функции).
-          # Создаём фиктивные реализации на основе __builtin_bswap*, чтобы
-          # проверка cc.has_function() прошла успешно.
+          # === Заглушка для bswap32/bswap64/clz/clzll/ctz/ctzll/ffs/ffsll/popcount/popcountll ===
+          # Meson при кросс-компиляции проверяет наличие этих функций в libc ARM64,
+          # но их там нет (в x86_64 они есть как макросы/функции). Создаём фиктивные
+          # реализации на основе __builtin_*, чтобы проверки cc.has_function() прошли.
           cat <<'EOF' > /tmp/bswap_stub.c
           #include <stdint.h>
 
@@ -71,6 +69,11 @@ jobs:
           int popcountll(unsigned long long x) { return __builtin_popcountll(x); }
           EOF
           aarch64-linux-gnu-gcc -c /tmp/bswap_stub.c -o /tmp/bswap_stub.o
+
+          # Проверяем, что bindgen установлен
+          echo "=== bindgen check ==="
+          ls -la /github/home/.cargo/bin/ || true
+          /github/home/.cargo/bin/bindgen --version || true
 
           echo "=== Compiler architecture check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
@@ -89,13 +92,14 @@ jobs:
           pkg-config = 'pkg-config'
           llvm-config = 'llvm-config-18'
           rust = ['rustc', '--target', 'aarch64-unknown-linux-gnu']
+          bindgen = '/github/home/.cargo/bin/bindgen'
 
           [built-in options]
           c_args = ['-DHAVE___BUILTIN_BSWAP32=1', '-DHAVE___BUILTIN_BSWAP64=1',
-          '-DHAVE___BUILTIN_CLZ=1', '-DHAVE___BUILTIN_CLZLL=1',
-          '-DHAVE___BUILTIN_CTZ=1', '-DHAVE___BUILTIN_CTZLL=1',
-          '-DHAVE___BUILTIN_FFS=1', '-DHAVE___BUILTIN_FFSLL=1',
-          '-DHAVE___BUILTIN_POPCOUNT=1', '-DHAVE___BUILTIN_POPCOUNTLL=1']
+                    '-DHAVE___BUILTIN_CLZ=1', '-DHAVE___BUILTIN_CLZLL=1',
+                    '-DHAVE___BUILTIN_CTZ=1', '-DHAVE___BUILTIN_CTZLL=1',
+                    '-DHAVE___BUILTIN_FFS=1', '-DHAVE___BUILTIN_FFSLL=1',
+                    '-DHAVE___BUILTIN_POPCOUNT=1', '-DHAVE___BUILTIN_POPCOUNTLL=1']
           c_link_args = ['/tmp/bswap_stub.o']
 
           [properties]
