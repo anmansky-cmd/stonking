@@ -90,6 +90,7 @@ jobs:
 
           echo "=== Compiler architecture check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
+          grep -r "bindgen" mesa/build/ 2>/dev/null | head -20
 
       - name: Cross-Build Mesa with Panfrost (PanVK) for ARM64
         run: |
@@ -140,8 +141,7 @@ jobs:
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
             -Dllvm=enabled \
             -Dbuild-tests=false \
-            -Dgallium-rusticl=false \
-            -Dgallium-clover=false
+            -Dgallium-rusticl=false
 
           meson compile -C build
 
