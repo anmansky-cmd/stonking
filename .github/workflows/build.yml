@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Install Cross-Compilation Toolchains and Target Dependencies (Multiarch)
         run: |
+          # Переключаем apt на зеркало Azure (стабильнее для GitHub Actions)
+          sed -i 's|http://archive.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          
           apt-get update
           apt-get install -y dpkg-dev file wget ca-certificates
 
