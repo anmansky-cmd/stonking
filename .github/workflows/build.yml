@@ -113,6 +113,7 @@ jobs:
                     '-DHAVE___BUILTIN_CTZ=1', '-DHAVE___BUILTIN_CTZLL=1',
                     '-DHAVE___BUILTIN_FFS=1', '-DHAVE___BUILTIN_FFSLL=1',
                     '-DHAVE___BUILTIN_POPCOUNT=1', '-DHAVE___BUILTIN_POPCOUNTLL=1']
+                     '-march=armv8-a', '-mtune=cortex-a76', '-fno-tree-vectorize']
           c_link_args = ['/tmp/bswap_stub.o']
 
           [properties]
@@ -139,7 +140,8 @@ jobs:
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
             -Dllvm=enabled \
             -Dbuild-tests=false \
-            -Dgallium-rusticl=false
+            -Dgallium-rusticl=false \
+            -Dblake3=disabled
 
           meson compile -C build
 
