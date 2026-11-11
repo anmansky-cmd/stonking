@@ -141,7 +141,8 @@ jobs:
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
             -Dllvm=enabled \
             -Dbuild-tests=false \
-            -Dgallium-rusticl=false
+            -Dgallium-rusticl=false \
+            -Dmesa-clc=auto
 
           meson compile -C build
 
