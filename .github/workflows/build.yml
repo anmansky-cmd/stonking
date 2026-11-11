@@ -129,6 +129,7 @@ jobs:
 
           echo "=== Compiler check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
+          grep -r "bindgen" mesa/build/ 2>/dev/null | head -20
 
           # Ключевой момент: pkg-config должен искать .pc только для ARM64
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
@@ -141,7 +142,8 @@ jobs:
             -Dglx=dri -Degl=enabled -Dgles2=enabled \
             -Dllvm=enabled \
             -Dbuild-tests=false \
-            -Dgallium-rusticl=false
+            -Dgallium-rusticl=false \
+            -Dopencl=disabled
 
           meson compile -C build
 
