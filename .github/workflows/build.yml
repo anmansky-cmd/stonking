@@ -105,6 +105,7 @@ jobs:
           pkg-config = 'pkg-config'
           llvm-config = 'llvm-config-18'
           rust = ['rustc', '--target', 'aarch64-unknown-linux-gnu']
+          bindgen = '/github/home/.cargo/bin/bindgen'
 
           [built-in options]
           c_args = ['-DHAVE___BUILTIN_BSWAP32=1', '-DHAVE___BUILTIN_BSWAP64=1',
