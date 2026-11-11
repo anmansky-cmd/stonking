@@ -90,8 +90,7 @@ jobs:
 
           echo "=== Compiler architecture check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
-          grep -r "bindgen" mesa/build/ 2>/dev/null | head -20
-
+          
       - name: Cross-Build Mesa with Panfrost (PanVK) for ARM64
         run: |
           git clone --depth=1 https://gitlab.freedesktop.org/mesa/mesa.git
@@ -106,7 +105,6 @@ jobs:
           pkg-config = 'pkg-config'
           llvm-config = 'llvm-config-18'
           rust = ['rustc', '--target', 'aarch64-unknown-linux-gnu']
-          bindgen = '/github/home/.cargo/bin/bindgen'
 
           [built-in options]
           c_args = ['-DHAVE___BUILTIN_BSWAP32=1', '-DHAVE___BUILTIN_BSWAP64=1',
@@ -129,8 +127,7 @@ jobs:
 
           echo "=== Compiler check ==="
           file $(readlink -f $(which aarch64-linux-gnu-gcc)) || true
-          grep -r "bindgen" mesa/build/ 2>/dev/null | head -20
-
+          
           # Ключевой момент: pkg-config должен искать .pc только для ARM64
           export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 
